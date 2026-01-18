@@ -5,8 +5,8 @@
  *   node concurrency_test.js
  */
 
-const TARGET_URL = "http://localhost:8080/test";
-const CONCURRENCY = 1000;
+const TARGET_URL = "http://localhost:8080/user?top=21&skip=0";
+const CONCURRENCY = 10000;
 
 async function concurrentTest() {
   const start = Date.now();

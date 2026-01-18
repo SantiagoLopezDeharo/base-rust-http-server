@@ -16,7 +16,14 @@ fn build_database_url() -> String {
 }
 
 pub async fn init_pool() -> Result<&'static PgPool, sqlx::Error> {
+    // ANSI color codes
+    const CYAN: &str = "\x1b[36m";
+    const GREEN: &str = "\x1b[32m";
+    const YELLOW: &str = "\x1b[33m";
+    const RESET: &str = "\x1b[0m";
+
     if let Some(pool) = POOL.get() {
+        println!("{CYAN}DB pool already initialized.{RESET}");
         return Ok(pool);
     }
 
@@ -26,10 +33,16 @@ pub async fn init_pool() -> Result<&'static PgPool, sqlx::Error> {
         .and_then(|v| v.parse::<u32>().ok())
         .unwrap_or(10);
 
+    println!("{CYAN}Connecting to database...{RESET}");
+
+    println!("{GREEN}Max pool connections:{RESET} {YELLOW}{max_connections}{RESET}");
+
     let pool = PgPoolOptions::new()
         .max_connections(max_connections)
         .connect(&database_url)
         .await?;
+
+    println!("{CYAN}DB pool initialized successfully!{RESET}");
 
     let _ = POOL.set(pool);
     Ok(POOL.get().expect("DB pool initialized"))

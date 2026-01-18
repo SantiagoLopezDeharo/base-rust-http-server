@@ -98,7 +98,13 @@ async fn handle_connection(mut stream: TcpStream, _permit: tokio::sync::OwnedSem
 
 fn main() {
     dotenv().ok();
-    println!("Hello, world!");
+    // ANSI color codes
+    const CYAN: &str = "\x1b[36m";
+    const GREEN: &str = "\x1b[32m";
+    const YELLOW: &str = "\x1b[33m";
+    const MAGENTA: &str = "\x1b[35m";
+    const RESET: &str = "\x1b[0m";
+
     init(init_routes());
 
     let cores = env::var("CORES")
@@ -115,6 +121,23 @@ fn main() {
 
     let max_connections = cores * 1024;
     let connection_limiter = std::sync::Arc::new(Semaphore::new(max_connections));
+
+    // Verbose startup logging
+    println!("{CYAN}Starting Base Rust Web API...{RESET}");
+    println!("{GREEN}Listening on port:{RESET} {YELLOW}{port}{RESET}");
+    println!("{GREEN}Worker threads:{RESET} {YELLOW}{cores}{RESET}");
+    println!("{GREEN}Max connections:{RESET} {YELLOW}{max_connections}{RESET}");
+    if let Ok(db_url) = env::var("DB_HOST") {
+        println!("{GREEN}DB Host:{RESET} {MAGENTA}{db_url}{RESET}");
+    }
+    if let Ok(db_name) = env::var("DB_NAME") {
+        println!("{GREEN}DB Name:{RESET} {MAGENTA}{db_name}{RESET}");
+    }
+    if let Ok(bcrypt_cost) = env::var("BCRYPT_COST") {
+        println!("{GREEN}Bcrypt cost:{RESET} {MAGENTA}{bcrypt_cost}{RESET}");
+    } else {
+        println!("{GREEN}Bcrypt cost:{RESET} {MAGENTA}default{RESET}");
+    }
 
     let mut senders = Vec::with_capacity(cores);
     for _ in 0..cores {
@@ -146,6 +169,8 @@ fn main() {
             .await
             .expect("Failed to initialize DB pool");
 
+        println!("{CYAN}Server is ready and accepting connections!{RESET}");
+
         let listener = TcpListener::bind(&bind_addr).await.unwrap();
         let mut next = 0usize;
 
@@ -153,7 +178,7 @@ fn main() {
             let (stream, _) = match listener.accept().await {
                 Ok(pair) => pair,
                 Err(err) => {
-                    eprintln!("Accept failed: {err}");
+                    eprintln!("{YELLOW}Accept failed:{RESET} {err}");
                     sleep(Duration::from_millis(50)).await;
                     continue;
                 }
@@ -162,7 +187,7 @@ fn main() {
             match connection_limiter.clone().try_acquire_owned() {
                 Ok(permit) => {
                     if senders[next].send((stream, permit)).await.is_err() {
-                        eprintln!("Worker channel closed");
+                        eprintln!("{YELLOW}Worker channel closed{RESET}");
                     }
                 }
                 Err(_) => {

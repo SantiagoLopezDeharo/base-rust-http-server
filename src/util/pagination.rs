@@ -46,10 +46,23 @@ pub fn build_paginated_json_query(
     };
 
     let sql = format!(
-        "WITH page AS (SELECT {select_columns} FROM \"{table}\"{where_str}{clause_str})\n\
-         SELECT (SELECT COUNT(*) FROM \"{table}\"{where_str}) AS total,\n\
-                COALESCE(json_agg(json_build_object({json_object})), '[]') AS data_json\n\
-         FROM page;",
+        "WITH page AS (
+            SELECT
+                {select_columns}
+            FROM \"{table}\"
+            {where_str} {clause_str}
+        )\n\
+        SELECT (
+                SELECT
+                    COUNT(*)
+                FROM \"{table}\"
+                {where_str}
+            ) AS total,\n\
+            COALESCE(
+                json_agg(json_build_object({json_object})),
+                '[]'
+            ) AS data_json\n\
+        FROM page;",
         select_columns = select_columns,
         table = table,
         where_str = where_str,
