@@ -33,10 +33,26 @@ impl fmt::Display for Request {
                 format!("{MAGENTA}unknown{RESET}", MAGENTA = MAGENTA, RESET = RESET)
             });
 
+        // Obfuscate Authorization-related headers
+        let mut obfuscated_headers = self.headers.clone();
+        for (key, value) in obfuscated_headers.iter_mut() {
+            let key_lower = key.to_ascii_lowercase();
+            if key_lower == "authorization" || key_lower == "proxy-authorization" {
+                let len = value.len();
+                if len > 4 {
+                    let half = len / 2;
+                    let (first, _) = value.split_at(half);
+                    let masked = format!("{}{}", first, "*".repeat(len - half));
+                    *value = masked;
+                } else {
+                    *value = "****".to_string();
+                }
+            }
+        }
         write!(
             f,
             "{CYAN}[{timestamp}]{RESET} {GREEN}INFO{RESET} {addr} \"{YELLOW}{method}{RESET} {BLUE}{url}{RESET}\"\nHeaders: {:#?}\nBody: {}",
-            self.headers,
+            obfuscated_headers,
             self.body,
             CYAN = CYAN,
             GREEN = GREEN,
