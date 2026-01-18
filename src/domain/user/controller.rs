@@ -7,6 +7,7 @@ use crate::routing::{Route, RouteParams};
 
 use super::repo::UserRepo;
 use super::service::UserService;
+use uuid::Uuid;
 
 pub struct UserController;
 
@@ -68,14 +69,37 @@ impl UserController {
 
     pub async fn get_one(_request: &mut Request, params: &RouteParams) -> Response {
         let _id = params.get("id").unwrap_or("");
-        let service = UserService::new(UserRepo::new());
-        let body = service.respond();
+
         let mut headers = HashMap::new();
-        headers.insert("Content-Type".to_string(), "text/plain".to_string());
-        Response {
-            status_code: 200,
-            headers,
-            body,
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+        // Validate UUID
+        if Uuid::parse_str(_id).is_err() {
+            return Response {
+                status_code: 400,
+                headers,
+                body: format!(
+                    "{{\"error\":{}}}",
+                    serde_json::json!(format!(
+                        "Invalid UUID for user id: '{}'. Must be a valid UUID string.",
+                        _id
+                    ))
+                ),
+            };
+        }
+
+        let service = UserService::new(UserRepo::new());
+        match service.get_one(_id.to_string()).await {
+            Ok(body) => Response {
+                status_code: 200,
+                headers,
+                body,
+            },
+            Err(e) => Response {
+                status_code: 500,
+                headers,
+                body: format!("{{\"error\":{}}}", serde_json::json!(e.to_string())),
+            },
         }
     }
 
@@ -111,29 +135,87 @@ impl UserController {
         }
     }
 
-    pub async fn update(_request: &mut Request, params: &RouteParams) -> Response {
-        let _id = params.get("id").unwrap_or("");
-        let service = UserService::new(UserRepo::new());
-        let body = service.respond();
+    pub async fn update(request: &mut Request, params: &RouteParams) -> Response {
+        let _id = params.get("id").unwrap_or("").to_string();
+
         let mut headers = HashMap::new();
-        headers.insert("Content-Type".to_string(), "text/plain".to_string());
-        Response {
-            status_code: 200,
-            headers,
-            body,
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+        // Validate UUID
+        if Uuid::parse_str(&_id).is_err() {
+            return Response {
+                status_code: 400,
+                headers,
+                body: format!(
+                    "{{\"error\":{}}}",
+                    serde_json::json!(format!(
+                        "Invalid UUID for user id: '{}'. Must be a valid UUID string.",
+                        _id
+                    ))
+                ),
+            };
+        }
+
+        let user = match super::dto::UpdateUserDto::from_json(&request.body) {
+            Ok(user) => user,
+            Err(err) => {
+                return Response {
+                    status_code: 400,
+                    headers,
+                    body: err,
+                };
+            }
+        };
+
+        let service = UserService::new(UserRepo::new());
+
+        match service.update_user(_id, user.password).await {
+            Ok(_) => Response {
+                status_code: 200,
+                headers,
+                body: "".to_string(),
+            },
+            Err(e) => Response {
+                status_code: 500,
+                headers,
+                body: format!("Failed to create user: {}", e),
+            },
         }
     }
 
     pub async fn delete(_request: &mut Request, params: &RouteParams) -> Response {
-        let _id = params.get("id").unwrap_or("");
+        let _id = params.get("id").unwrap_or("").to_string();
         let service = UserService::new(UserRepo::new());
-        let body = service.respond();
+
         let mut headers = HashMap::new();
-        headers.insert("Content-Type".to_string(), "text/plain".to_string());
-        Response {
-            status_code: 200,
-            headers,
-            body,
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+        // Validate UUID
+        if Uuid::parse_str(&_id).is_err() {
+            return Response {
+                status_code: 400,
+                headers,
+                body: format!(
+                    "{{\"error\":{}}}",
+                    serde_json::json!(format!(
+                        "Invalid UUID for user id: '{}'. Must be a valid UUID string.",
+                        _id
+                    ))
+                ),
+            };
+        }
+
+        match service.delete_user(_id).await {
+            Ok(_) => Response {
+                status_code: 200,
+                headers,
+                body: "".to_string(),
+            },
+            Err(e) => Response {
+                status_code: 500,
+                headers,
+                body: format!("Failed to create user: {}", e),
+            },
         }
     }
 }

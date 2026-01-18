@@ -9,7 +9,7 @@ A lightweight, multi-thread async Rust web API with a NestJS-like folder structu
 - Request/Response primitives with automatic status lines
 - Controller-first route declarations (NestJS-like)
 - Domain-driven structure: controller, service, repo, DTO
-- CLI scaffold to generate new entities
+- CLI tool for generating new entities, middlewares and managing DB.
 
 ## Project Structure
 
