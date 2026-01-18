@@ -7,13 +7,17 @@ use tokio::time::{Duration, sleep};
 mod domain;
 mod primitives;
 mod routing;
+use chrono::Utc;
 use primitives::http::request::Request;
 use routing::{init, init_routes, route};
 
 async fn handle_connection(mut stream: TcpStream, _permit: tokio::sync::OwnedSemaphorePermit) {
+    let remote_addr = stream.peer_addr().ok();
     let mut buf_reader = BufReader::new(&mut stream);
     let mut http_request = Vec::new();
     let mut line = String::new();
+
+    let timestamp = Utc::now();
 
     while buf_reader.read_line(&mut line).await.unwrap() > 0 {
         let trimmed = line.trim_end().to_string();
@@ -57,11 +61,15 @@ async fn handle_connection(mut stream: TcpStream, _permit: tokio::sync::OwnedSem
         headers,
         body,
         stream,
+        remote_addr,
+        timestamp,
     };
 
     let response = route(&request).await;
 
+    println!("//=====================//");
     println!("{}", request);
+
     request
         .stream
         .write_all(&response.to_bytes())
