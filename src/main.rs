@@ -6,6 +6,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Semaphore, mpsc};
 use tokio::time::{Duration, sleep};
 
+mod db;
 mod domain;
 mod middlewares;
 mod primitives;
@@ -127,6 +128,10 @@ fn main() {
         .unwrap();
 
     runtime.block_on(async move {
+        let _ = db::init_pool()
+            .await
+            .expect("Failed to initialize DB pool");
+
         let listener = TcpListener::bind(&bind_addr).await.unwrap();
         let mut next = 0usize;
 

@@ -46,6 +46,12 @@ You can override the default port and number of worker threads by creating a `.e
 # .env
 PORT=80   # Server port (default: 8080)
 CORES=4   # Number of worker threads (default: all available cores)
+DB_HOST=localhost         # Postgres host (default: localhost)
+DB_PORT=5432              # Postgres port (default: 5432)
+DB_USER=postgres          # Postgres user (default: postgres)
+DB_PASS=postgres          # Postgres password (default: postgres)
+DB_NAME=postgres          # Postgres database name (default: postgres)
+DB_MAX_CONNECTIONS=10     # Max DB pool connections (default: 10)
 ```
 
 These values will be loaded automatically at startup.
@@ -137,6 +143,67 @@ pub async fn log_request(
 ```
 
 IMPORTANT: use earlier handlers for middleware and put the main controller action last.
+
+
+## Database Usage
+
+To fetch data from the Postgres database, use the `db::query` function. It takes a SQL string and a vector of bind parameters (for SQL injection safety):
+
+```rust
+// Example: fetch a user by id
+let user_id = 42;
+let rows = db::query("SELECT * FROM users WHERE id = $1", vec![&user_id]).await?;
+for row in rows {
+  let name: String = row.try_get("name")?;
+  // ...
+}
+```
+
+Bind parameters must implement the `Encode` and `Type` traits from sqlx. Use `?` placeholders for parameters in your SQL.
+
+The connection pool is initialized automatically at startup.
+
+## Database Migrations & Seeders
+
+Database schema migrations and seed data are managed with SQL files and a CLI tool:
+
+### Creating a Migration or Seeder
+
+- To create a new migration:
+  ```bash
+  cargo run --bin db_cli -- migration:new
+  ```
+  You will be prompted for a name. Two files will be created in `src/db/migrations/`: an `_up.sql` (apply) and a `_down.sql` (undo) file, both prefixed with a timestamp for uniqueness.
+
+- To create a new seeder:
+  ```bash
+  cargo run --bin db_cli -- seed:new
+  ```
+  You will be prompted for a name. Two files will be created in `src/db/seeders/`.
+
+### Applying Migrations/Seeders
+
+- To apply all pending migrations:
+  ```bash
+  cargo run --bin db_cli -- migrate
+  ```
+- To apply all pending seeders:
+  ```bash
+  cargo run --bin db_cli -- seed
+  ```
+
+### Undoing Migrations/Seeders
+
+- To undo the last applied migration:
+  ```bash
+  cargo run --bin db_cli -- migrate:undo
+  ```
+- To undo the last applied seeder:
+  ```bash
+  cargo run --bin db_cli -- seed:undo
+  ```
+
+The framework automatically creates tables (`_migrations`, `_seeders`) to track which scripts have been applied. Each migration/seeder must have both an `_up.sql` and a `_down.sql` file for full support.
 
 ## Notes
 
